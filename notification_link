@@ -1,0 +1,155 @@
+# Notification on FLutter Background , Foreground & InApp
+
+
+final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+late AndroidNotificationChannel channel;
+
+bool isFlutterLocalNotificationsInitialized = false;
+// Main Method
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FirebaseMessaging.instance.getInitialMessage();
+  FirebaseMessaging.onBackgroundMessage(_messageHandler);
+
+
+//Init Method
+
+messaging.getInitialMessage();
+var initializationSettingsAndroid =
+    new AndroidInitializationSettings('@drawable/logo');
+var initializationSettingsIOS = new IOSInitializationSettings();
+var initializationSettings = new InitializationSettings(
+    android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
+flutterLocalNotificationsPlugin.initialize(initializationSettings,
+    onSelectNotification: onSelectNotification);
+
+messaging.getToken().then((token) {
+  print("token>>>>>>>   " + token!);
+});
+
+FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  messaging.getInitialMessage();
+  if (message.data != null) {
+    print('Message also contained a notification: ${message.data}');
+  }
+
+  if (showToast && message.data != null) {
+    setState(() {
+      showNotification(
+          ' ${message.data['title']}', ' ${message.data['body']}');
+    });
+  }
+});
+
+// In the Class
+
+Future onSelectNotification(String? payload) async {
+  if (payload != '') {
+    log('messagedataFound');
+    Navigator.push(
+        _navKey.currentState!.context,
+        PageTransition(
+            child: UserNotification(isTap: true),
+            type: PageTransitionType.fade,
+            duration: const Duration(milliseconds: 900),
+            reverseDuration: (const Duration(milliseconds: 900))));
+  } else {
+    log('messagedataFound1231312321');
+    Navigator.push(
+        _navKey.currentState!.context,
+        PageTransition(
+            child: UserNotification(isTap: true),
+            type: PageTransitionType.fade,
+            duration: const Duration(milliseconds: 900),
+            reverseDuration: (const Duration(milliseconds: 900))));
+  }
+}
+
+
+void showNotification(String title, String body) async {
+  await _demoNotification(title, body);
+}
+
+Future<void> _demoNotification(String title, String body) async {
+  var androidPlatformChannelSpecifics =
+      AndroidNotificationDetails('channel_ID', 'channel name',
+          importance: Importance.max,
+          playSound: true,
+          // sound: 'sound',
+          showProgress: true,
+          priority: Priority.high,
+          ticker: title);
+
+  var iOSChannelSpecifics = IOSNotificationDetails();
+  var platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics, iOS: iOSChannelSpecifics);
+  await flutterLocalNotificationsPlugin
+      .show(0, title, body, platformChannelSpecifics, payload: 'test');
+}
+
+
+Future<void> _messageHandler(RemoteMessage remoteMessage) async {
+  await Firebase.initializeApp();
+  FirebaseMessaging.instance.getInitialMessage();
+  log('Background Notification------>>>>   ${remoteMessage.notification}');
+
+
+  setupFlutterNotifications();
+  showFlutterNotification(remoteMessage);
+
+
+Future<void> setupFlutterNotifications() async {
+  if (isFlutterLocalNotificationsInitialized) {
+    return;
+  }
+  channel = const AndroidNotificationChannel(
+    'high_importance_channel', // id
+    'High Importance Notifications', // title
+    description:
+        'This channel is used for important notifications.', // description
+    importance: Importance.high,
+  );
+
+  flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  isFlutterLocalNotificationsInitialized = true;
+}
+
+void showFlutterNotification(RemoteMessage message) {
+  RemoteNotification? notification = message.notification;
+  AndroidNotification? android = message.notification?.android;
+  if (message.data != null) {
+    flutterLocalNotificationsPlugin.show(
+      0,
+      message.data['title'],
+      message.data['title'],
+      NotificationDetails(
+        android: AndroidNotificationDetails('channel.id', 'channel.name',
+            channelDescription: 'channel.description',
+            // TODO add a proper drawable resource to android, for now using
+            //      one that already exists in example app.
+            importance: Importance.max,
+            playSound: true,
+            icon: "@mipmap/ic_launcher",
+
+            // sound: RawResourceAndroidNotificationSound('notification'),
+            showProgress: true,
+            priority: Priority.high,
+            ticker: 'test ticker'),
+      ),
+    );
+  }
+}
