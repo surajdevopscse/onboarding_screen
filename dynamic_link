@@ -1,0 +1,83 @@
+import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
+import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:page_transition/page_transition.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../screen/bottom_navigation/leader_reels_screen.dart';
+
+final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
+class DynamicLinksService {
+  /// Create Dynamic Link
+  static Future<String> createDynamicLink(String parameter) async {
+    print("Shared Link createDynamicLink--------------------");
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+
+    String url = "https://com.hunartalenthub?share=$parameter";
+    final DynamicLinkParameters parameters = DynamicLinkParameters(
+      uriPrefix: "https://hunartalenthub.page.link",
+      link: Uri.parse(url),
+      androidParameters: AndroidParameters(
+        packageName: packageInfo.packageName,
+        minimumVersion: 23,
+      ),
+      iosParameters: IOSParameters(
+        bundleId: packageInfo.packageName,
+        minimumVersion: packageInfo.version,
+        appStoreId: '123456789',
+      ),
+    );
+
+    final FirebaseDynamicLinks links = await FirebaseDynamicLinks.instance;
+    final shareLink = await links.buildShortLink(parameters);
+    return shareLink.shortUrl.toString();
+  }
+
+  ///Init Dynamic Link
+  static Future<bool> initDynamicLink(BuildContext context) async {
+    print("Shared Link initDynamicLink--------------------");
+    try {
+      final PendingDynamicLinkData? data =
+          await FirebaseDynamicLinks.instance.getInitialLink();
+      final Uri? deepLink = data?.link;
+      print("dynamic Link $deepLink");
+      if (deepLink != null) {
+        final queryParams = deepLink.queryParameters;
+        String? userId;
+        if (queryParams.length > 0) {
+          userId = queryParams["share"];
+          final SharedPreferences prefs = await _prefs;
+          prefs.setString('user_id', userId!);
+          // verify the username is parsed correctly
+          print("My users username is: $userId");
+          print("My users shared is: ${prefs.getString('user_id')}");
+        }
+        Navigator.pushReplacement(
+          context,
+          PageTransition(
+            child: LeaderReelsScreen(
+              event_id: '',
+              id: userId!,
+              age_group_id: '',
+              category_id: '',
+              creator_id: '',
+              parent_id: '',
+              isDynamic: true,
+            ),
+            type: PageTransitionType.fade,
+            duration: const Duration(milliseconds: 500),
+            reverseDuration: (const Duration(milliseconds: 500)),
+          ),
+        );
+        // Navigator.of(context).pushReplacement(
+        //     MaterialPageRoute(builder: (context) => ChildSignup()));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+      print(e.toString());
+    }
+  }
+}
